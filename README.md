@@ -35,18 +35,18 @@ make clean
 ---
 
 ### 3. Demo with Screenshots
-The following screenshots are located in the /screenshots directory of this repository.
+*Click the filenames below to view the proof of execution.*
 
 | File | Caption |
 | :--- | :--- |
-| ss1.png | Multi-container supervision: Two containers running under one supervisor process. |
-| ss2.png | Metadata tracking: Output of ./engine ps showing PIDs, status, and resource limits. |
-| ss3.png | Bounded-buffer logging: Evidence of log capture from container stdout to local files. |
-| ss4.png | CLI and IPC: Supervisor responding to a stop command issued via Unix Domain Sockets. |
-| ss5.png | Soft-limit warning: dmesg output showing a SOFT LIMIT warning triggered by RSS usage. |
-| ss6.png | Hard-limit enforcement: dmesg showing HARD LIMIT breach and the resulting SIGKILL. |
-| ss7.png | Scheduling experiment: top output showing the NI 0 process dominating the NI 19 process. |
-| ss8.png | Clean teardown: ps aux output showing no lingering engine or container processes. |
+| [ss1.png](./screenshots/ss1.png) | Multi-container supervision: Two containers running under one supervisor process. |
+| [ss2.png](./screenshots/ss2.png) | Metadata tracking: Output of ./engine ps showing PIDs, status, and resource limits. |
+| [ss3.png](./screenshots/ss3.png) | Bounded-buffer logging: Evidence of log capture from container stdout to local files. |
+| [ss4.png](./screenshots/ss4.png) | CLI and IPC: Supervisor responding to a stop command issued via Unix Domain Sockets. |
+| [ss5.png](./screenshots/ss5.png) | Soft-limit warning: dmesg output showing a SOFT LIMIT warning triggered by RSS usage. |
+| [ss6.png](./screenshots/ss6.png) | Hard-limit enforcement: dmesg showing HARD LIMIT breach and the resulting SIGKILL. |
+| [ss7.png](./screenshots/ss7.png) | Scheduling experiment: top output showing the NI 0 process dominating the NI 19 process. |
+| [ss8.png](./screenshots/ss8.png) | Clean teardown: ps aux output showing no lingering engine or container processes. |
 
 ---
 
