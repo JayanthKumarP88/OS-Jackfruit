@@ -1,111 +1,23 @@
-# Multi-Container Runtime
+# OS-Jackfruit: Lightweight Container Engine
 
-A lightweight Linux container runtime in C with a long-running supervisor and a kernel-space memory monitor.
-
-Read [`project-guide.md`](project-guide.md) for the full project specification.
+### 1. Team Information
+* **Jayanth Kumar P**: PES1UG24CS199
+* **Rishit K**: PES1UG24CS207
 
 ---
 
-## Getting Started
+### 2. Build, Load, and Run Instructions
 
-### 1. Fork the Repository
-
-1. Go to [github.com/shivangjhalani/OS-Jackfruit](https://github.com/shivangjhalani/OS-Jackfruit)
-2. Click **Fork** (top-right)
-3. Clone your fork:
-
+#### **Step 1: Build the Project**
+Compile the user-space engine, the kernel module, and the test workloads:
 ```bash
-git clone https://github.com/<your-username>/OS-Jackfruit.git
-cd OS-Jackfruit
-```
-
-### 2. Set Up Your VM
-
-You need an **Ubuntu 22.04 or 24.04** VM with **Secure Boot OFF**. WSL will not work.
-
-Install dependencies:
-
-```bash
-sudo apt update
-sudo apt install -y build-essential linux-headers-$(uname -r)
-```
-
-### 3. Run the Environment Check
-
-```bash
-cd boilerplate
-chmod +x environment-check.sh
-sudo ./environment-check.sh
-```
-
-Fix any issues reported before moving on.
-
-### 4. Prepare the Root Filesystem
-
-```bash
-mkdir rootfs-base
-wget https://dl-cdn.alpinelinux.org/alpine/v3.20/releases/x86_64/alpine-minirootfs-3.20.3-x86_64.tar.gz
-tar -xzf alpine-minirootfs-3.20.3-x86_64.tar.gz -C rootfs-base
-
-# Make one writable copy per container you plan to run
-cp -a ./rootfs-base ./rootfs-alpha
-cp -a ./rootfs-base ./rootfs-beta
-```
-
-Do not commit `rootfs-base/` or `rootfs-*` directories to your repository.
-
-### 5. Understand the Boilerplate
-
-The `boilerplate/` folder contains starter files:
-
-| File                   | Purpose                                             |
-| ---------------------- | --------------------------------------------------- |
-| `engine.c`             | User-space runtime and supervisor skeleton          |
-| `monitor.c`            | Kernel module skeleton                              |
-| `monitor_ioctl.h`      | Shared ioctl command definitions                    |
-| `Makefile`             | Build targets for both user-space and kernel module |
-| `cpu_hog.c`            | CPU-bound test workload                             |
-| `io_pulse.c`           | I/O-bound test workload                             |
-| `memory_hog.c`         | Memory-consuming test workload                      |
-| `environment-check.sh` | VM environment preflight check                      |
-
-Use these as your starting point. You are free to restructure the repository however you want — the submission requirements are listed in the project guide.
-
-### 6. Build and Verify
-
-```bash
-cd boilerplate
 make
-```
-
-If this compiles without errors, your environment is ready.
-
-### 7. GitHub Actions Smoke Check
-
-Your fork will inherit a minimal GitHub Actions workflow from this repository.
-
-That workflow only performs CI-safe checks:
-
-- `make -C boilerplate ci`
-- user-space binary compilation (`engine`, `memory_hog`, `cpu_hog`, `io_pulse`)
-- `./boilerplate/engine` with no arguments must print usage and exit with a non-zero status
-
-The CI-safe build command is:
-
-```bash
-make -C boilerplate ci
-```
-
-This smoke check does not test kernel-module loading, supervisor runtime behavior, or container execution.
-
----
-
-## What to Do Next
-
-Read [`project-guide.md`](project-guide.md) end to end. It contains:
-
-- The six implementation tasks (multi-container runtime, CLI, logging, kernel monitor, scheduling experiments, cleanup)
-- The engineering analysis you must write
-- The exact submission requirements, including what your `README.md` must contain (screenshots, analysis, design decisions)
-
-Your fork's `README.md` should be replaced with your own project documentation as described in the submission package section of the project guide. (As in get rid of all the above content and replace with your README.md)
+Step 2: Load Kernel ModuleInsert the memory monitor module and verify the character device:Bashsudo insmod monitor.ko
+ls -l /dev/container_monitor
+Step 3: Start SupervisorLaunch the parent supervisor process in the background or a dedicated terminal:Bashsudo ./engine supervisor ./rootfs-base
+Step 4: Launch ContainersCreate writable rootfs copies and start containers with memory limits:Bashcp -a ./rootfs-base ./rootfs-alpha
+sudo ./engine start alpha ./rootfs-alpha "sh -c 'while true; do true; done'" --soft-mib 48 --hard-mib 80
+Step 5: CleanupStop the engine and unload the module to return the system to a clean state:Bashsudo pkill -9 engine
+sudo rmmod monitor
+make clean
+3. Demo with ScreenshotsThe following screenshots are located in the /screenshots directory of this repository.FileCaptionss1.pngMulti-container supervision: Two containers running under one supervisor process.ss2.pngMetadata tracking: Output of ./engine ps showing PIDs, status, and resource limits.ss3.pngBounded-buffer logging: Evidence of log capture from container stdout to local files.ss4.pngCLI and IPC: Supervisor responding to a stop command issued via Unix Domain Sockets.ss5.pngSoft-limit warning: dmesg output showing a "SOFT LIMIT" warning triggered by RSS usage.ss6.pngHard-limit enforcement: dmesg showing "HARD LIMIT" breach and the resulting SIGKILL.ss7.pngScheduling experiment: top output showing the NI 0 process dominating the NI 19 process.ss8.pngClean teardown: ps aux output showing no lingering engine or container processes.4. Engineering AnalysisI. Isolation MechanismsOur runtime achieves isolation by leveraging Linux Namespaces.PID Namespace: Ensures process IDs are virtualized; a containerized process cannot see or signal processes on the host or in other containers.Mount Namespace & chroot: By using chroot, we change the root directory for the container, preventing it from accessing host files.UTS Namespace: Allows each container to have its own hostname independent of the host.Note on Sharing: The host kernel is still shared. All containers use the same syscall interface and kernel data structures; if a kernel vulnerability is exploited, the host is at risk.II. Supervisor and Process LifecycleA long-running parent supervisor is critical for reliability. It acts as the "reaper" (handling SIGCHLD) to prevent zombie processes. It maintains the source of truth for metadata and provides a persistent IPC endpoint for CLI communication. Without it, containers would become orphaned upon CLI exit.III. IPC, Threads, and SynchronizationWe utilized two primary IPC mechanisms and a multithreaded logging design:Unix Domain Sockets: Used for communication between CLI and Supervisor. We used Mutexes to ensure that only one CLI request updates global metadata at a time.Bounded-Buffer Logging: We implemented a producer-consumer model for container output. To prevent race conditions and buffer overflows, we used Condition Variables to synchronize the logging threads.IV. Memory Management and EnforcementThe kernel module monitors RSS (Resident Set Size), the actual physical RAM occupied by a process.Limits: Soft limits act as a warning threshold; hard limits are absolute ceilings.Kernel Enforcement: Enforcement must happen in kernel space because a user-space process can ignore signals or hang. The LKM ensures the OS can forcibly reclaim resources via SIGKILL.V. Scheduling BehaviorThe experiment demonstrated the Completely Fair Scheduler (CFS). By altering "Nice" values, we manipulated the weight assigned to each process's time-slice. Under contention, the scheduler prioritizes throughput for the higher-priority (lower nice) process to maintain system responsiveness.5. Design Decisions and TradeoffsUnix Domain Sockets for IPCTradeoff: Higher complexity than signals but allows bi-directional structured data transfer.Justification: Necessary for commands like ps to return metadata to the user.LKM-based MonitoringTradeoff: Risk of system-wide crash if bugs exist in the module.Justification: Only way to get real-time RSS data without the overhead of polling /proc.Static Metadata TableTradeoff: Limits the absolute number of containers to a fixed size.Justification: Avoids risky dynamic memory allocation in the supervisor's critical path.6. Scheduler Experiment ResultsWhen two CPU-intensive shell loops were pinned to a single core using taskset, the following behavior was observed:Container PIDNice ValueObserved %CPU Usage185270 (Normal)98.5%1853319 (Nice)1.5%
